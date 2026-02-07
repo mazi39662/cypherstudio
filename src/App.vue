@@ -7,8 +7,8 @@ import InteractiveBackground from './components/InteractiveBackground.vue'
 
 <template>
   <div class="min-h-screen flex flex-col selection:bg-primary/30 selection:text-white scroll-smooth relative">
-    <InteractiveBackground v-if="$route.name !== 'anonymous'" />
-    <Navbar v-if="$route.name !== 'anonymous'" class="relative z-20" />
+    <InteractiveBackground />
+    <Navbar class="relative z-20" />
     <main class="flex-grow relative z-10">
       <RouterView v-slot="{ Component }">
         <transition name="fade" mode="out-in">
@@ -16,7 +16,7 @@ import InteractiveBackground from './components/InteractiveBackground.vue'
         </transition>
       </RouterView>
     </main>
-    <Footer v-if="$route.name !== 'anonymous'" />
+    <Footer />
   </div>
 </template>
 
