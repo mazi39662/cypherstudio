@@ -12,6 +12,7 @@
     "@types/animejs": "^3.1.13",
     "animejs": "^4.3.5",
     "clsx": "^2.1.0",
+    "firebase": "^12.9.0",
     "lucide-vue-next": "^0.363.0",
     "tailwind-merge": "^2.2.2",
     "vue": "^3.4.21",
