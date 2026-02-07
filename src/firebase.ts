@@ -10,6 +10,11 @@ const firebaseConfig = {
     appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
+// Debug: Verify config exists
+if (!firebaseConfig.apiKey) {
+    console.error('🔥 FIREBASE ERROR: API Key is missing! Check your .env file or Netlify environment variables.');
+}
+
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 

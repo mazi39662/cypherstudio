@@ -80,36 +80,50 @@ const sendMessage = async () => {
   if (message.value.trim() === '' || isSending.value) return;
   
   isSending.value = true;
+  console.log('--- BUZZ TRANSMISSION START ---');
+  
+  // 10-second timeout wrapper
+  const timeoutPromise = new Promise((_, reject) => {
+    setTimeout(() => reject(new Error('TRANSMISSION_TIMEOUT')), 10000);
+  });
   
   try {
     const now = Date.now();
-    const expiresAt = now + (24 * 60 * 60 * 1000); // 24 hours from now
+    const expiresAt = now + (24 * 60 * 60 * 1000);
     
     const payload = {
       toBeeId: username,
       content: message.value,
       timestamp: now,
       expiresAt: expiresAt,
-      colorTheme: selectedGradient.value,
+      colorTheme: selectedGradient.value || 'default',
       isRead: false
     };
     
-    console.log('Attempting to add anonymous message:', payload);
-    const docRef = await addDoc(collection(db, 'anonymous_messages'), payload);
-    console.log('Message sent with ID:', docRef.id);
+    console.log('Payload:', payload);
+
+    // Race the addDoc against our timeout
+    await Promise.race([
+      addDoc(collection(db, 'anonymous_messages'), payload),
+      timeoutPromise
+    ]);
     
+    console.log('SUCCESS: Message delivered to Hive');
     showSuccess.value = true;
     message.value = '';
   } catch (error: any) {
-    console.error('Failed to send buzz:', error);
-    // Even if it fails due to permissions, show a more specific alert
-    if (error.code === 'permission-denied') {
-      alert('Security error: Firestore rules are preventing the message from being sent. Please allow "create" for "anonymous_messages" collection.');
+    console.error('CRITICAL SEND ERROR:', error);
+    
+    if (error.message === 'TRANSMISSION_TIMEOUT') {
+      alert('Transmission timed out. The Hive is unreachable. Check your internet or Firebase Config.');
+    } else if (error.code === 'permission-denied') {
+      alert('Security Error: The Hive rejected your message. Check Firestore rules.');
     } else {
-      alert(`Error: ${error.message || 'Failed to send buzz. Please try again.'}`);
+      alert(`Buzz failed: ${error.message || 'Unknown error'}`);
     }
   } finally {
     isSending.value = false;
+    console.log('--- BUZZ TRANSMISSION END ---');
   }
 };
 
