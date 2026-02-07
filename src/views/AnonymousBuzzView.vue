@@ -94,13 +94,20 @@ const sendMessage = async () => {
       isRead: false
     };
     
-    await addDoc(collection(db, 'anonymous_messages'), payload);
+    console.log('Attempting to add anonymous message:', payload);
+    const docRef = await addDoc(collection(db, 'anonymous_messages'), payload);
+    console.log('Message sent with ID:', docRef.id);
     
     showSuccess.value = true;
     message.value = '';
-  } catch (error) {
-    console.error('Failed to send message:', error);
-    alert('Oops! Failed to send buzz. Please try again.');
+  } catch (error: any) {
+    console.error('Failed to send buzz:', error);
+    // Even if it fails due to permissions, show a more specific alert
+    if (error.code === 'permission-denied') {
+      alert('Security error: Firestore rules are preventing the message from being sent. Please allow "create" for "anonymous_messages" collection.');
+    } else {
+      alert(`Error: ${error.message || 'Failed to send buzz. Please try again.'}`);
+    }
   } finally {
     isSending.value = false;
   }
@@ -113,60 +120,73 @@ const sendAnother = () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-[#0D0D12] text-white flex flex-col items-center justify-center p-4 font-sans selection:bg-white/20">
+  <div class="min-h-screen bg-[#08080A] text-white flex flex-col items-center justify-center p-6 font-sans selection:bg-yellow-500/30 overflow-hidden relative">
+    <!-- Animated background elements -->
+    <div class="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-yellow-500/10 blur-[120px] rounded-full animate-pulse"></div>
+    <div class="absolute bottom-[-10%] right-[-10%] w-[30%] h-[30%] bg-amber-600/10 blur-[100px] rounded-full animate-pulse" style="animation-delay: 2s;"></div>
+
     <!-- Loading State -->
-    <div v-if="isLoading" class="flex flex-col items-center gap-4">
-      <div class="w-12 h-12 border-4 border-white/5 border-t-white rounded-full animate-spin"></div>
-      <p class="text-white/40 font-medium animate-pulse">Checking buzz link...</p>
+    <div v-if="isLoading" class="flex flex-col items-center gap-6 z-10">
+      <div class="relative w-16 h-16">
+        <div class="absolute inset-0 border-4 border-yellow-500/10 rounded-full"></div>
+        <div class="absolute inset-0 border-4 border-yellow-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+      <p class="text-yellow-500/60 font-medium tracking-widest uppercase text-xs animate-pulse">Initializing Hive Bridge...</p>
     </div>
 
     <!-- Link Expired State -->
-    <div v-else-if="!isValid" class="max-w-md w-full text-center space-y-6 animate-in fade-in zoom-in duration-500">
+    <div v-else-if="!isValid" class="max-w-md w-full text-center space-y-8 z-10 backdrop-blur-3xl bg-white/[0.02] p-10 rounded-[40px] border border-white/5 shadow-2xl animate-in fade-in zoom-in duration-500">
       <div class="flex justify-center">
-        <div class="w-20 h-20 rounded-full bg-red-500/10 flex items-center justify-center text-red-500 border border-red-500/20">
-          <AlertCircle class="w-10 h-10" />
+        <div class="w-24 h-24 rounded-full bg-red-500/10 flex items-center justify-center text-red-400 border border-red-500/20 shadow-[0_0_40px_rgba(239,68,68,0.1)]">
+          <AlertCircle class="w-12 h-12" />
         </div>
       </div>
-      <h1 class="text-3xl font-bold">Link Expired</h1>
-      <p class="text-gray-400">This buzz link is no longer available or has expired. You are being redirected to our official page.</p>
-      <div class="pt-4">
-        <div class="inline-block h-1 w-24 bg-red-500/20 rounded-full overflow-hidden">
-          <div class="h-full bg-red-500 animate-[loading_3s_linear_infinite]"></div>
+      <div class="space-y-2">
+        <h1 class="text-3xl font-black text-white">Buzz Link Expired</h1>
+        <p class="text-gray-500 leading-relaxed">This portal into the hive has vanished. Returning you to the home base...</p>
+      </div>
+      <div class="pt-4 flex justify-center">
+        <div class="h-1 w-24 bg-red-500/10 rounded-full overflow-hidden">
+          <div class="h-full bg-red-500 animate-[loading_5s_linear_infinite]"></div>
         </div>
       </div>
     </div>
 
     <!-- Message Composition State -->
-    <div v-else-if="!showSuccess" class="max-w-md w-full space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
+    <div v-else-if="!showSuccess" class="max-w-md w-full space-y-8 z-10 animate-in fade-in slide-in-from-bottom-8 duration-700">
       <!-- Profile Header -->
-      <div class="text-center space-y-3">
-        <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 text-sm font-medium text-white/60">
-          <Shield class="w-4 h-4" />
-          Anonymous & Private
+      <div class="text-center space-y-4">
+        <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-yellow-500/10 border border-yellow-500/20 text-[10px] font-bold tracking-[0.2em] uppercase text-yellow-500 drop-shadow-[0_0_10px_rgba(234,179,8,0.3)]">
+          <Shield class="w-3.5 h-3.5" />
+          Encrypted Message
         </div>
-        <h1 class="text-4xl font-black tracking-tight pt-2">
-          Buzz @<span class="text-transparent bg-clip-text bg-gradient-to-r" :class="selectedGradient">{{ username }}</span>
+        <h1 class="text-4xl font-black tracking-tighter">
+          Buzz <span class="text-yellow-500">@{{ username }}</span>
         </h1>
-        <p class="text-white/40 text-sm">Send an anonymous message. They'll never know it was you.</p>
+        <p class="text-white/40 text-sm font-medium leading-relaxed">Leave a message in their digital jar. <br/>Your identity is perfectly hidden.</p>
       </div>
 
       <!-- Input Card -->
       <div class="relative group">
-        <div class="absolute -inset-0.5 bg-gradient-to-r blur opacity-30 group-hover:opacity-50 transition duration-1000 group-hover:duration-200" :class="selectedGradient"></div>
-        <div class="relative bg-[#16161D] rounded-3xl p-6 border border-white/10 shadow-2xl">
-          <div class="relative">
-            <textarea
-              v-model="message"
-              :maxlength="charLimit"
-              class="w-full h-48 bg-transparent text-xl font-medium placeholder:text-white/10 focus:outline-none resize-none"
-              placeholder="Send me anonymous messages..."
-            ></textarea>
-            
-            <div class="absolute bottom-0 right-0 flex items-center gap-3">
-              <span class="text-xs font-mono text-white/20" :class="{ 'text-red-500/50': message.length >= charLimit }">
-                {{ message.length }}/{{ charLimit }}
-              </span>
+        <!-- Background Glow -->
+        <div class="absolute -inset-1 bg-gradient-to-r from-yellow-500 to-amber-600 rounded-[42px] blur opacity-10 group-focus-within:opacity-25 transition duration-500"></div>
+        
+        <div class="relative backdrop-blur-[40px] bg-black/40 rounded-[40px] p-8 border border-white/10 shadow-2xl transition-all duration-300 group-focus-within:border-yellow-500/50">
+          <textarea
+            v-model="message"
+            :maxlength="charLimit"
+            class="w-full h-44 bg-transparent text-xl font-medium placeholder:text-white/10 focus:outline-none resize-none leading-relaxed text-yellow-50"
+            placeholder="Type your anonymous buzz here..."
+          ></textarea>
+          
+          <div class="flex items-center justify-between mt-4">
+            <div class="flex items-center gap-2 text-white/20">
+              <Info class="w-3.5 h-3.5" />
+              <span class="text-[10px] font-bold uppercase tracking-wider">Honey-Grade Security</span>
             </div>
+            <span class="text-[10px] font-black font-mono px-2 py-1 rounded bg-white/5" :class="[message.length >= charLimit ? 'text-red-500' : 'text-white/30']">
+              {{ message.length }}/{{ charLimit }}
+            </span>
           </div>
         </div>
       </div>
@@ -175,46 +195,48 @@ const sendAnother = () => {
       <button
         @click="sendMessage"
         :disabled="message.trim() === '' || isSending"
-        class="w-full py-5 rounded-2xl font-bold text-xl flex items-center justify-center gap-3 transition-all active:scale-[0.98] disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed group relative overflow-hidden"
-        :class="[message.trim() !== '' ? 'bg-white text-black hover:bg-white/90 shadow-[0_0_30px_rgba(255,255,255,0.2)]' : 'bg-white/5 text-white/20']"
+        class="w-full h-16 rounded-[24px] font-black text-lg transition-all active:scale-[0.97] disabled:opacity-30 disabled:grayscale disabled:cursor-not-allowed relative overflow-hidden group shadow-2xl shadow-yellow-500/10"
+        :class="[message.trim() !== '' ? 'bg-yellow-500 text-black hover:bg-yellow-400' : 'bg-white/5 text-white/20 border border-white/5']"
       >
-        <span v-if="!isSending" class="flex items-center gap-3">
-          Send!
+        <div v-if="!isSending" class="flex items-center justify-center gap-2 tracking-tight">
+          SEND TO HIVE
           <Send class="w-5 h-5 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
-        </span>
-        <div v-else class="w-6 h-6 border-2 border-black/20 border-t-black rounded-full animate-spin"></div>
+        </div>
+        <div v-else class="flex items-center justify-center gap-3">
+          <div class="w-5 h-5 border-[3px] border-black/20 border-t-black rounded-full animate-spin"></div>
+          <span class="tracking-widest text-xs uppercase">Transmitting...</span>
+        </div>
       </button>
 
-      <div class="flex items-center justify-center gap-2 text-white/20 text-xs">
-        <Info class="w-3 h-3" />
-        Your IP and identity are hidden from the recipient.
+      <div class="text-center">
+         <p class="text-[10px] font-bold text-white/20 uppercase tracking-[0.2em] animate-pulse">No IP Logs • No Tracking • Pure Buzz</p>
       </div>
     </div>
 
     <!-- Success State -->
-    <div v-else class="max-w-md w-full text-center space-y-8 animate-in fade-in zoom-in duration-500">
+    <div v-else class="max-w-md w-full text-center space-y-8 z-10 animate-in fade-in zoom-in duration-500 backdrop-blur-3xl bg-white/[0.02] p-12 rounded-[40px] border border-white/5 shadow-2xl">
       <div class="flex justify-center">
-        <div class="w-24 h-24 rounded-full bg-green-500/10 flex items-center justify-center text-green-500 border border-green-500/20 shadow-[0_0_50px_rgba(34,197,94,0.2)]">
+        <div class="w-24 h-24 rounded-full bg-yellow-500/10 flex items-center justify-center text-yellow-500 border border-yellow-500/20 shadow-[0_0_50px_rgba(234,179,8,0.2)]">
           <Send class="w-10 h-10" />
         </div>
       </div>
       <div class="space-y-3">
-        <h2 class="text-4xl font-black">Sent!</h2>
-        <p class="text-white/60 text-lg">Your anonymous buzz was delivered to @{{ username }}.</p>
+        <h2 class="text-4xl font-black text-white tracking-tighter">BUZZED!</h2>
+        <p class="text-white/40 text-lg leading-relaxed font-medium">Your secret message has been <br/>stored in @{{ username }}'s jar.</p>
       </div>
       
-      <div class="pt-4 space-y-4">
+      <div class="pt-6 space-y-4">
         <button
           @click="sendAnother"
-          class="w-full py-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors font-semibold"
+          class="w-full py-5 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all font-bold text-white shadow-lg active:scale-95"
         >
-          Send another one
+          SEND ANOTHER
         </button>
         <a
           href="https://cypherstudio.netlify.app/app/notibee"
-          class="block w-full py-4 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 text-black font-bold shadow-lg shadow-yellow-500/20 hover:scale-[1.02] transition-transform"
+          class="block w-full py-5 rounded-2xl bg-yellow-500 text-black font-black shadow-[0_10px_30px_rgba(234,179,8,0.2)] hover:bg-yellow-400 hover:scale-[1.02] transition-all active:scale-95"
         >
-          Get your own link 🐝
+          JOIN THE HIVE 🐝
         </a>
       </div>
     </div>
